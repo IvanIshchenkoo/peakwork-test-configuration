@@ -1,0 +1,10 @@
+indexes:
+
+- kind: stock
+  ancestor: no
+  properties:
+  - name: symbol
+    direction: desc
+  - name: date
+    direction: desc
+

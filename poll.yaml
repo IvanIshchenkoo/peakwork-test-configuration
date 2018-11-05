@@ -1,0 +1,29 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: poll
+spec:
+  template:
+    metadata:
+      labels:
+        app: poll
+    spec:
+      volumes:
+      - name: google-cloud-key
+        secret:
+          secretName: my-app-creds
+          items:
+          - key: sa_json
+            path: sa_credentials.json
+      containers:
+      - name: poll
+        image: gcr.io/atomic-lens-221114/poll-service:v3
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: google-cloud-key
+          mountPath: /etc/gcp
+          readOnly: true
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /etc/gcp/sa_credentials.json

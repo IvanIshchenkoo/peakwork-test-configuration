@@ -1,0 +1,95 @@
+### How to build and push docker containers of the applications
+
+First of all, you need to build a jar files of the two java projects. Please use gradle to build jar. 
+Then we need to package Java apps as Docker containers. The example docker files for both projects was attached to the archive.
+
+1. Save this Dockerfile and build this image by running this command (make sure to replace PROJECT_ID with yours):
+
+docker build -t gcr.io/PROJECT_ID/endpoint-service:v1 .
+docker build -t gcr.io/PROJECT_ID/poll-service:v1 .
+
+2. Now you can push them to the Google Container Registry, a private repository for your Docker images accessible from every Google Cloud project (but also from outside Google Cloud Platform):
+
+gcloud docker -- push gcr.io/PROJECT_ID/endpoint-service:v1
+gcloud docker -- push gcr.io/PROJECT_ID/poll-service:v1
+
+If all goes well and after a little while you should be able to see the container image listed in the console: Tools > Container Registry. 
+At this point you now have a project-wide Docker image available which Kubernetes can access and orchestrate as you'll see in a few minutes.
+
+************************
+IMPORTANT NOTE:
+After poll-service will create a kind in Datastore, please create index with a gcloud console with a following command:
+
+gcloud datastore create-indexes ~/myapp/index.yaml
+
+index.yaml is attached to the archive. If you will use different kind name then 'stock', please change also in this file.
+************************
+
+### How to deploy applications to existing kubernetes cluster
+
+You have to configure kubectl to manage your kubernetes cluster.
+For this go to Google Cloud Console Web UI -> Kubernetes Engine -> click on "connect" button 
+
+Now your kubectl configured for managing your kubernetes cluster, and you are ready for deploy apps to it
+
+1. Create secret using json file with credentials that allows application communicate with Google Datastore Service
+
+1.1 Update sa_json fild value in secret.yaml with base64 hash of your credentials json file:
+
+base64 <cred_file_name>.json
+
+1.2 Insert returned hash as sa_json value in secret.yaml
+
+1.3 Create Secret in Kubernetes cluster
+
+#kubectl create -f secert.yaml 
+
+2. Deploy applications 
+
+For deploy youe apps you have to run the following commands:
+
+kubectl create -f poll.yaml - deploys poll-service 
+kubectl create -f endpoint.yaml - deploys endpoint-service
+
+3. Testing
+
+3.1 To test poll-service go to Google Cloud Console -> Datastore -> Entities -> click on "kind" -> choose "stock" from drop down menu
+
+3.2 Verify that new data are written to Datastore
+
+3.3 To test endpoint service you have to figure out pod name first. For this run following command
+
+kubectl describe pods
+
+You will see pod name for endpoint service that looks like endpoint-f98d76dd9-zrt9d. 
+
+3.4 Now you can test endpoint service response. For this run the following command
+
+kubectl exec -it <endpoint_pod_name> curl http://localhost:8080/stocks?companies=AAPL
+
+4. Stop/Delete apps
+
+For stopping/deleting your applications run the following command:
+
+kubectl delete deployment poll - stops/deletes poll-service from kubernetes cluster
+kubectl delete deployment endpoint - stops/deletes endpoint-service from kubernetes cluster
+
+
+### How to run applications locally
+
+1. You need to build a jar files of the two java projects. Please use gradle to build jar. 
+
+2. Before run the jar files please configure environment variable 'GOOGLE_APPLICATION_CREDENTIALS' with a path to credentials json file. 
+You can also open projects in your favorite IDE (in this case, before start of the app, please configure environment variable 'GOOGLE_APPLICATION_CREDENTIALS' with a path to credentials json file in 'Run/Debug Configuration' box).
+
+3. Please have a look at the README files for each project to see more details.
+
+
+### List of improvements:
+
+1. Add Google cloud logging feature (instead of logging events to the file we can log to Google cloud service and store logs there).
+2. Write integration tests for poll-service and add some unit/integration for endpoint-service projects.
+3. Now endpoint will fail (400 error) if we will send date, not in the correct format (f.e. 2017-11-17 without time). Add more patterns for user entering or user-friendly messages for errors.
+4. The poll-service project does two functions: one is polling stock data for 5 years period, the second function is polling data with a configured period.
+	We can split that also in two separate projects or write the first function with Google Cloud Functions.
+5. Add Swagger for endpoint-service project (for API documentation).
